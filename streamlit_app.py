@@ -129,7 +129,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("✨ VAL Language Analyzer")
+st.title(" VAL Language Analyzer")
 st.caption(
     "Analyze brand names & phrases across sentiment, sound symbolism, numerology, "
     "and cultural risk – then discover better alternatives."
@@ -243,7 +243,7 @@ with st.spinner("Analyzing phrase with VAL engines..."):
     except Timeout:
         st.warning(
             "The analysis service is taking a bit longer to respond, likely because it is just starting up "
-            "on the server (free tier). Please click **“🚀 Analyze phrase”** again."
+            "on the server. Please click **“🚀 Analyze phrase”** again."
         )
         st.stop()
     except ConnectionError:
