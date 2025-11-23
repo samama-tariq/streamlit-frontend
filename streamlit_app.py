@@ -1,4 +1,5 @@
 import requests
+from requests.exceptions import Timeout, ConnectionError, RequestException
 import streamlit as st
 import os
 
@@ -224,14 +225,50 @@ payload = {
     "num_alternatives": num_alternatives,
 }
 
+# with st.spinner("Analyzing phrase with VAL engines..."):
+#     try:
+#         resp = requests.post(API_BASE_URL, json=payload, timeout=60)
+#     except Exception as e:
+#         st.error(f"Could not reach backend API: {e}")
+#         st.stop()
+
+# if resp.status_code != 200:
+#     st.error(f"API error [{resp.status_code}]: {resp.text}")
+#     st.stop()
+
 with st.spinner("Analyzing phrase with VAL engines..."):
     try:
-        resp = requests.post(API_BASE_URL, json=payload, timeout=60)
-    except Exception as e:
-        st.error(f"Could not reach backend API: {e}")
+        # shorter timeout so it fails fast when the instance is waking up
+        resp = requests.post(API_BASE_URL, json=payload, timeout=20)
+    except Timeout:
+        st.warning(
+            "The analysis service is taking a bit longer to respond, likely because it is just starting up "
+            "on the server (free tier). Please click **“🚀 Analyze phrase”** again."
+        )
+        st.stop()
+    except ConnectionError:
+        st.warning(
+            "Could not reach the analysis service. It may still be starting or temporarily unavailable. "
+            "Please try running the analysis again."
+        )
+        st.stop()
+    except RequestException as e:
+        st.error(
+            "An unexpected error occurred while talking to the analysis service. "
+            "Please try again, and if the problem persists, contact support."
+        )
+        # If you want to reveal the raw error for debugging, uncomment:
+        # st.caption(str(e))
         st.stop()
 
-if resp.status_code != 200:
+# Handle non-200 responses nicely
+if resp.status_code >= 500:
+    st.warning(
+        "The analysis service returned a server error. This can happen briefly when the backend is waking up "
+        "on the free hosting tier. Please run the analysis again."
+    )
+    st.stop()
+elif resp.status_code != 200:
     st.error(f"API error [{resp.status_code}]: {resp.text}")
     st.stop()
 
