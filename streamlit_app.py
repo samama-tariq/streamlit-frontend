@@ -13,6 +13,20 @@ API_BASE_URL = "https://val-project-b3fd.onrender.com/api/analyze"
 #     os.getenv("API_BASE_URL", "https://val-project-b3fd.onrender.com/api/analyze"),
 # )
 
+PURPOSE_OPTIONS = [
+    ("No specific purpose", None),
+    ("Leadership / Innovation", "leadership_innovation"),
+    ("Partnership / Harmony", "partnership_harmony"),
+    ("Creative Expression", "creative_expression"),
+    ("Foundation / Stability", "foundation_stability"),
+    ("Transformation / Freedom", "transformation_freedom"),
+    ("Nurturing / Service", "nurturing_service"),
+    ("Spiritual / Wisdom", "spiritual_wisdom"),
+    ("Abundance / Authority", "abundance_authority"),
+    ("Completion / Universal Love", "completion_universal_love"),
+]
+
+
 # =========================
 # Helpers
 # =========================
@@ -123,16 +137,32 @@ def render_alternative_card(alt: dict, idx: int):
 # Streamlit app layout
 # =========================
 
+# st.set_page_config(
+#     page_title="VAL Language Analyzer",
+#     page_icon="",
+#     layout="wide",
+# )
+
+# st.title(" VAL Language Analyzer")
+# st.caption(
+#     "Analyze brand names & phrases across sentiment, sound symbolism, numerology, "
+#     "and cultural risk – then discover better alternatives."
+# )
 st.set_page_config(
-    page_title="VAL Language Analyzer",
-    page_icon="",
+    page_title="V.A.L. – Vibration Analysis of Language",
+    page_icon="✨",
     layout="wide",
 )
 
-st.title(" VAL Language Analyzer")
-st.caption(
-    "Analyze brand names & phrases across sentiment, sound symbolism, numerology, "
-    "and cultural risk – then discover better alternatives."
+st.title("V.A.L.")
+st.subheader("Welcome to Vibration Analysis of Language")
+
+st.markdown(
+    """
+**To use V.A.L.:**  
+Key in your word or phrase, the region it applies to, which vibrational analysis you’re looking for,  
+and its purpose (only if you’d like a numerological alignment analysis).
+    """
 )
 
 # ---- Input Form on main page ----
@@ -149,27 +179,54 @@ with st.form("analyze_form"):
             help="Up to 250 characters.",
         )
 
+    # with col2:
+    #     target_market = st.selectbox(
+    #         "Target market / region",
+    #         options=["US", "GLOBAL", "EU", "MIDDLE_EAST", "OTHER"],
+    #         index=0,
+    #         help="Used mainly for cultural risk evaluation.",
+    #     )
+
+
+    #     purpose = st.selectbox(
+    #         "Purpose",
+    #         options=[
+    #             "beauty_brand_tagline",
+    #             "product_name",
+    #             "brand_name",
+    #             "campaign_slogan",
+    #             "generic",
+    #         ],
+    #         index=0,
+    #     )
+    #     if purpose == "generic":
+    #         purpose = None
     with col2:
         target_market = st.selectbox(
-            "Target market / region",
+            "Region / market",
             options=["US", "GLOBAL", "EU", "MIDDLE_EAST", "OTHER"],
             index=0,
-            help="Used mainly for cultural risk evaluation.",
+            help="Used for cultural risk analysis (where the phrase will be used).",
         )
 
-        purpose = st.selectbox(
-            "Purpose",
-            options=[
-                "beauty_brand_tagline",
-                "product_name",
-                "brand_name",
-                "campaign_slogan",
-                "generic",
-            ],
-            index=0,
+        # Purpose is only meaningful when Numerology is enabled
+        purpose_label_list = [label for (label, _value) in PURPOSE_OPTIONS]
+
+        # When numerology is off, we disable the widget and force 'No specific purpose'
+        if "purpose_index" not in st.session_state:
+            st.session_state["purpose_index"] = 0
+
+        purpose_index = st.selectbox(
+            "Vibrational purpose (used only for numerology)",
+            options=range(len(purpose_label_list)),
+            format_func=lambda i: purpose_label_list[i],
+            index=st.session_state["purpose_index"],
+            disabled=False,  # we'll override below
+            help="Choose the intended vibrational theme if Numerology is selected.",
         )
-        if purpose == "generic":
-            purpose = None
+
+    # We’ll map this to the internal key later, taking numerology toggle into account.
+
 
     st.markdown("### 2. Engines & options")
 
@@ -179,7 +236,11 @@ with st.form("analyze_form"):
         st.markdown("**Engines to apply**")
         sentiment_on = st.checkbox("Sentiment", value=True)
         phono_on = st.checkbox("Phonosemantic (sound symbolism)", value=True)
-        numero_on = st.checkbox("Numerology", value=True)
+        numero_on = st.checkbox(
+            "Numerology",
+            value=True,
+            help="Includes numerology value and alignment with the chosen purpose."
+        )
         cultural_on = st.checkbox(
             "Cultural risk",
             value=True,
@@ -207,14 +268,42 @@ if not submit:
     st.stop()
 
 # ---- Validate and call backend ----
+# if not text.strip():
+#     st.error("Please enter a non-empty word or phrase.")
+#     st.stop()
+
+# payload = {
+#     "text": text.strip(),
+#     "target_market": target_market,
+#     "purpose": purpose,
+#     "engines": {
+#         "sentiment": sentiment_on,
+#         "phonosemantic": phono_on,
+#         "numerology": numero_on,
+#         "cultural": cultural_on,
+#     },
+#     "generate_alternatives": generate_alternatives,
+#     "num_alternatives": num_alternatives,
+# }
+
 if not text.strip():
     st.error("Please enter a non-empty word or phrase.")
     st.stop()
 
+# Map selected index to internal purpose key
+if numero_on:
+    # If numerology is ON, we honour the user’s selection
+    selected_label, selected_key = PURPOSE_OPTIONS[purpose_index]
+    st.session_state["purpose_index"] = purpose_index  # remember selection
+    purpose_value = selected_key  # may be None for "No specific purpose"
+else:
+    # If numerology is OFF, purpose is irrelevant
+    purpose_value = None
+
 payload = {
     "text": text.strip(),
     "target_market": target_market,
-    "purpose": purpose,
+    "purpose": purpose_value,
     "engines": {
         "sentiment": sentiment_on,
         "phonosemantic": phono_on,
@@ -224,6 +313,7 @@ payload = {
     "generate_alternatives": generate_alternatives,
     "num_alternatives": num_alternatives,
 }
+
 
 # with st.spinner("Analyzing phrase with VAL engines..."):
 #     try:
